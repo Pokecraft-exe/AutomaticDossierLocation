@@ -1,0 +1,12 @@
+# Identifiants confidentiels
+secrets.json
+
+# Pièces justificatives personnelles (ne jamais publier)
+demandeur/
+garant/
+*.pdf
+digiposte_erreur.png
+
+__pycache__/
+*.pyc
+.venv/

@@ -1,0 +1,78 @@
+{
+  "demandeur": [
+    {
+      "nom_piece": "Pièce d'identité (CNI, passeport ou titre de séjour) en cours de validité",
+      "chemin": "demandeur/piece_identite.pdf",
+      "dynamique": false
+    },
+    {
+      "nom_piece": "Justificatif de domicile actuel (3 dernières quittances, attestation d'hébergement ou avis de taxe foncière)",
+      "chemin": "demandeur/justificatif_domicile.pdf",
+      "dynamique": false
+    },
+    {
+      "nom_piece": "Justificatif de statut : carte d'étudiant ou certificat de scolarité de l'année en cours",
+      "chemin": "demandeur/certificat_scolarite.pdf",
+      "dynamique": false
+    },
+    {
+      "nom_piece": "Justificatif de statut : convention de stage (si stagiaire)",
+      "chemin": "demandeur/convention_stage.pdf",
+      "dynamique": false
+    },
+    {
+      "nom_piece": "Dernier avis d'imposition (ou de situation déclarative)",
+      "chemin": "demandeur/avis_imposition.pdf",
+      "dynamique": false
+    },
+    {
+      "nom_piece": "Justificatif de ressources : avis d'attribution de bourse",
+      "chemin": "demandeur/attribution_bourse.pdf",
+      "dynamique": false
+    },
+    {
+      "nom_piece": "Justificatif de ressources : gratifications / indemnités de stage",
+      "chemin": "demandeur/indemnites_stage.pdf",
+      "dynamique": false
+    }
+  ],
+  "garant": [
+    {
+      "nom_piece": "Pièce d'identité du garant en cours de validité",
+      "chemin": "garant/piece_identite.pdf",
+      "dynamique": false
+    },
+    {
+      "nom_piece": "Justificatif de domicile du garant (dernière quittance, facture ou avis de taxe foncière)",
+      "chemin": "garant/justificatif_domicile.pdf",
+      "dynamique": false
+    },
+    {
+      "nom_piece": "Justificatif d'activité du garant (contrat de travail ou attestation employeur de moins de 3 mois)",
+      "chemin": "garant/justificatif_activite.pdf",
+      "dynamique": false
+    },
+    {
+      "nom_piece": "3 derniers bulletins de salaire du garant",
+      "chemin": "garant/bulletins_salaire/bulletin_{year}_{month:02d}.pdf",
+      "dynamique": true,
+      "nom_site": "Digiposte",
+      "url_scraper": "https://secure.digiposte.fr/",
+      "regex_recherche": "(?i)(bulletin|paie|salaire).*({month:02d}[-_/ ]?{year}|{mois_nom}.*{year})",
+      "nom_module": "digiposte_fetcher",
+      "nombre_mois": 3,
+      "decalage_mois": 1,
+      "methode": "auto"
+    },
+    {
+      "nom_piece": "Avis d'imposition complet du garant (toutes les pages)",
+      "chemin": "garant/avis_imposition.pdf",
+      "dynamique": false
+    },
+    {
+      "nom_piece": "Acte de cautionnement signé",
+      "chemin": "garant/acte_cautionnement.pdf",
+      "dynamique": false
+    }
+  ]
+}

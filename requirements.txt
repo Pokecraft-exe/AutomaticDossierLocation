@@ -1,0 +1,2 @@
+# Optionnel : nécessaire uniquement pour le mode "selenium" de digiposte_fetcher
+selenium>=4.10
