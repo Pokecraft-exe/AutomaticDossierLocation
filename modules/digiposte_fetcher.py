@@ -155,6 +155,56 @@ def _cliquer_texte(driver, motif, delai=5):
     return False
 
 
+SELECTEUR_LIBELLES = ("a, button, [role='button'], [role='link'], [role='menuitem'], [role='row'], "
+                      "[role='treeitem'], li, tr, [title], [aria-label], span, p, div")
+
+# Un seul aller-retour WebDriver : éléments visibles + leur libellé
+_JS_LIBELLES = """
+return Array.from(document.querySelectorAll(arguments[0]))
+  .filter(e => e.getClientRects().length > 0)
+  .map(e => [e, (e.innerText || e.getAttribute('title') || e.getAttribute('aria-label') || '').trim()]);
+"""
+
+
+def _trouver_libelle(driver, regex):
+    """Élément visible le plus spécifique (libellé le plus court) correspondant à la regex."""
+    candidats = [(len(t), el) for el, t in driver.execute_script(_JS_LIBELLES, SELECTEUR_LIBELLES)
+                 if t and regex.search(t)]
+    return min(candidats, key=lambda c: c[0])[1] if candidats else None
+
+
+def _cliquer_libelle(driver, motif, delai=DELAI):
+    """Clique sur une entrée de menu, un dossier... dont le libellé correspond à la regex."""
+    regex = re.compile(motif, re.I | re.S)
+    fin = time.time() + delai
+    while time.time() < fin:
+        element = _trouver_libelle(driver, regex)
+        if element is not None:
+            driver.execute_script("arguments[0].scrollIntoView(); arguments[0].click();", element)
+            time.sleep(2)  # chargement de la vue suivante (SPA)
+            return
+        time.sleep(0.5)
+    raise RuntimeError(f"élément introuvable pour la navigation : {motif}")
+
+
+def _revenir_au_dossier(driver, piece):
+    """Ferme un éventuel aperçu puis refait la navigation depuis le menu (sans recharger la page)."""
+    from selenium.webdriver.common.keys import Keys
+
+    try:
+        driver.switch_to.active_element.send_keys(Keys.ESCAPE)
+    except Exception:
+        pass
+    _cliquer_texte(driver, r"^\s*(fermer|retour|close)\s*$", delai=1)
+    _naviguer(driver, piece)
+
+
+def _naviguer(driver, piece):
+    """Depuis l'accueil connecté, suit les étapes de 'navigation' (regex cliquées dans l'ordre)."""
+    for etape in piece.get("navigation", []):
+        _cliquer_libelle(driver, etape)
+
+
 def _connexion(driver, url, identifiants):
     driver.get(url)
     _cliquer_texte(driver, r"tout accepter|accepter", delai=5)  # bandeau cookies
@@ -197,19 +247,19 @@ def _nouveau_fichier(dossier, avant, delai=DELAI):
 
 def _telecharger_document(driver, regex, dossier):
     """Trouve le document dont le libellé correspond à la regex et le télécharge."""
-    from selenium.webdriver.common.by import By
-
-    candidats = []
-    for el in driver.find_elements(By.CSS_SELECTOR, "a, li, tr, [role='row'], [title]"):
-        texte = f"{el.text} {el.get_attribute('title') or ''}".strip()
-        if texte and regex.search(texte) and el.is_displayed():
-            candidats.append((len(texte), el))
-    if not candidats:
+    element = _trouver_libelle(driver, regex)
+    if element is None:
         return None
-    element = min(candidats, key=lambda c: c[0])[1]  # le plus spécifique
 
     avant = {f.name for f in dossier.iterdir()}
-    driver.execute_script("arguments[0].scrollIntoView(); arguments[0].click();", element)
+    # Bouton de téléchargement propre à la ligne si présent, sinon clic sur la ligne (aperçu)
+    bouton = driver.execute_script("""
+        const motif = /télécharger|download/i;
+        return Array.from(arguments[0].querySelectorAll('a, button, [role="button"]')).find(b =>
+            motif.test(b.innerText + ' ' + (b.getAttribute('aria-label') || '') + ' ' + (b.title || '')));
+    """, element)
+    cible = bouton if bouton is not None else element
+    driver.execute_script("arguments[0].scrollIntoView(); arguments[0].click();", cible)
     fichier = _nouveau_fichier(dossier, avant, delai=5)
     if fichier is None and _cliquer_texte(driver, r"télécharger|download"):
         fichier = _nouveau_fichier(dossier, avant)
@@ -224,17 +274,19 @@ def recuperer_selenium(piece, a_faire):
         driver = creer_driver(dossier)
         try:
             _connexion(driver, piece["url_scraper"], identifiants)
-            if not _premier_visible(driver, ["main", "[role='main']"], delai=DELAI):
-                raise RuntimeError("espace documents non chargé après connexion")
-            time.sleep(3)  # laisse la liste de documents se remplir (SPA)
+            _naviguer(driver, piece)  # ex. menu "Coffre" puis dossier "Orange ... Bulletins"
+            time.sleep(2)  # laisse la liste de documents se remplir (SPA)
             for libelle, regex, destination in a_faire:
                 fichier = _telecharger_document(driver, regex, dossier)
+                if fichier is None:
+                    # la vue a pu changer (aperçu ouvert...) : on ferme et on revient au dossier
+                    _revenir_au_dossier(driver, piece)
+                    time.sleep(2)
+                    fichier = _telecharger_document(driver, regex, dossier)
                 if fichier:
                     obtenus.append(ranger(fichier, destination))
                 else:
                     print(f"[!] Aucun document Digiposte ne correspond pour {libelle} ({regex.pattern})")
-                driver.get(piece["url_scraper"])
-                time.sleep(3)
         except Exception:
             capture = RACINE / "digiposte_erreur.png"
             try:
@@ -288,6 +340,9 @@ def recuperer_manuel(piece, a_faire):
             ouvrir_url(piece["url_scraper"])
             ouvert = True
         debut = time.time()
+        chemin = " > ".join(piece.get("navigation_texte", []))
+        if chemin and len(obtenus) == 0:
+            print(f"[i] Dans {piece.get('nom_site', 'le site')} : {chemin}")
         rep = input(f"Téléchargez le bulletin de {libelle} depuis {piece.get('nom_site', 'le site')}, "
                     "puis Entrée (s = passer) : ").strip().lower()
         if rep == "s":

@@ -59,6 +59,8 @@ Deux sections, `demandeur` et `garant`, contenant chacune une liste de pièces :
 | `nom_site`, `url_scraper` | site source et URL de connexion |
 | `regex_recherche` | regex de recherche du document, formatée comme une f-string |
 | `nom_module` | module de `modules/` chargé pour la récupération |
+| `navigation` | regex des éléments à cliquer dans l'ordre après connexion (menu, dossier) |
+| `navigation_texte` | même chemin en clair, affiché en mode manuel |
 | `nombre_mois` | nombre de mois consécutifs à récupérer (3 pour les bulletins) |
 | `decalage_mois` | mois à sauter avant le premier (1 = commencer au mois précédent) |
 | `methode` | `auto` (défaut), `selenium` ou `manuel` |
@@ -68,11 +70,25 @@ Variables disponibles dans `chemin` et `regex_recherche` : `{year}`,
 `{month:02d}`, `{mois_nom}` (ex. « septembre »). Les accolades propres aux
 regex doivent être **doublées** : `\d{{2}}`.
 
+Exemple Digiposte (bulletins Orange) :
+
+```json
+"navigation": ["^\\s*Coffre\\s*$", "(?=.*Orange)(?=.*Bulletins)"],
+"regex_recherche": "(?i){year}\\s*{month:02d}\\s*-\\s*Bulletin"
+```
+
+Après connexion, le module clique sur **Coffre** dans le menu, puis sur le
+dossier dont le nom contient **Orange** et **Bulletins** (dans n'importe quel
+ordre), et cherche les PDF nommés `AAAA mm - Bulletin…` (ex.
+`2026 09 - Bulletin de paie`).
+
 ## Modes de récupération Digiposte
 
 - **selenium** : Chromium headless se connecte avec `secrets.json`, demande le
-  code de vérification si Digiposte en envoie un, cherche un document dont le
-  libellé correspond à la regex et le télécharge. Si une étape échoue, une
+  code de vérification si Digiposte en envoie un, suit les étapes de
+  `navigation`, cherche un document dont le libellé correspond à la regex et
+  le télécharge (bouton « Télécharger » de la ligne, sinon via l'aperçu, qui
+  est ensuite refermé). Si une étape échoue, une
   capture `digiposte_erreur.png` est enregistrée. Les sélecteurs sont
   génériques (champs email/mot de passe, boutons « Se connecter »,
   « Télécharger ») : il faudra peut-être les ajuster si l'interface de
