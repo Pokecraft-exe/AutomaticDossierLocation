@@ -167,15 +167,20 @@ return Array.from(document.querySelectorAll(arguments[0]))
 
 
 def _trouver_libelle(driver, regex):
-    """Élément visible le plus spécifique (libellé le plus court) correspondant à la regex."""
+    """Élément visible le plus spécifique (libellé le plus court) correspondant à la regex.
+
+    La regex est testée ligne par ligne : un même nom (de dossier, de document)
+    doit la satisfaire entièrement. Un bloc regroupant « Orange - Factures » et
+    « Bulletins Total » ne correspond donc pas à « Orange » + « Bulletins ».
+    """
     candidats = [(len(t), el) for el, t in driver.execute_script(_JS_LIBELLES, SELECTEUR_LIBELLES)
-                 if t and regex.search(t)]
+                 if any(regex.search(ligne) for ligne in t.splitlines())]
     return min(candidats, key=lambda c: c[0])[1] if candidats else None
 
 
 def _cliquer_libelle(driver, motif, delai=DELAI):
     """Clique sur une entrée de menu, un dossier... dont le libellé correspond à la regex."""
-    regex = re.compile(motif, re.I | re.S)
+    regex = re.compile(motif, re.I)
     fin = time.time() + delai
     while time.time() < fin:
         element = _trouver_libelle(driver, regex)
@@ -274,7 +279,7 @@ def recuperer_selenium(piece, a_faire):
         driver = creer_driver(dossier)
         try:
             _connexion(driver, piece["url_scraper"], identifiants)
-            _naviguer(driver, piece)  # ex. menu "Coffre" puis dossier "Orange ... Bulletins"
+            _naviguer(driver, piece)  # ex. menu "Coffre" puis le dossier dont le nom contient Orange et Bulletins
             time.sleep(2)  # laisse la liste de documents se remplir (SPA)
             for libelle, regex, destination in a_faire:
                 fichier = _telecharger_document(driver, regex, dossier)

@@ -78,8 +78,8 @@ Exemple Digiposte (bulletins Orange) :
 ```
 
 Après connexion, le module clique sur **Coffre** dans le menu, puis sur le
-dossier dont le nom contient **Orange** et **Bulletins** (dans n'importe quel
-ordre), et cherche les PDF nommés `AAAA mm - Bulletin…` (ex.
+dossier dont le **nom lui-même** contient **Orange** et **Bulletins** (dans
+n'importe quel ordre, ex. « Orange - Bulletins de paie »), et cherche les PDF nommés `AAAA mm - Bulletin…` (ex.
 `2026 09 - Bulletin de paie`).
 
 ## Modes de récupération Digiposte
